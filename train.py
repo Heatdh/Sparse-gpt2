@@ -34,19 +34,40 @@ if __name__ == '__main__':
     print(data.size())  
     print("Encoding done")
     # Train
+    
     model.train()
     model.apply(lambda x: x.half())
     model.to('cuda')
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    for epoch in range(1):
-        for i in range(0, data.size(1) - 1, config.n_ctx):
+    loss_fn = torch.nn.CrossEntropyLoss()
+
+    batch_size = 4
+    num_batches = data.size(1) // batch_size
+    num_epochs = 10
+    seq_len = 128  # Define the sequence length
+
+    epochs = 10
+    for epoch in range(epochs):
+        total_loss = 0
+        for batch in range(0, data.size(1) - seq_len, seq_len):
+            inputs = data[:, batch:batch+seq_len]
+            targets = data[:, batch+1:batch+seq_len+1]
+            
             optimizer.zero_grad()
-            loss = model(data[:, i:i+config.n_ctx], labels=data[:, i+1:i+1+config.n_ctx])
+            
+            outputs = model(inputs)
+            outputs = outputs[0]  # Access the tensor within the tuple
+            loss = loss_fn(outputs.view(-1, outputs.size(-1)), targets.view(-1))
+            
             loss.backward()
             optimizer.step()
-            print(loss.item())
-    model.eval()
-    model.apply(lambda x: x.float())
-    torch.save(model.state_dict(), 'model.pth')
+            
+            total_loss += loss.item()
+        
+        print(f"Epoch {epoch+1}/{epochs} - Loss: {total_loss}")
+
+        
+
+
 
     
